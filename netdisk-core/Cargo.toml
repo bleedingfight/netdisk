@@ -1,0 +1,46 @@
+[package]
+name = "netdisk-core"
+version = "0.1.0"
+authors = ["bleedingfight <bleedingfight@gmail.com>"]
+description = "Core APIs for netdisk"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/netdisk-rs/netdisk"
+documentation = "https://docs.rs/hyper/"
+rust-version = "1.63"
+edition = "2021"
+links = "netdisk-core"
+build = "build.rs"
+readme = "README.md"
+
+# Some dependencies may not be their latest version, in order to support older rustc.
+[dependencies]
+crossbeam-deque = "0.8.6"
+crossbeam-utils = "0.8.21"
+wasm_sync = { version = "0.1.2", optional = true }
+base64 = "0.22.0"
+toml = "0.9.7"
+dirs = "6.0.0"
+base62 = "2.2.3"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+env_logger = "0.11"
+home = "0.5"
+tempfile = "3"
+
+
+
+[features]
+
+# This feature switches to a spin-lock implementation on the browser's
+# main thread to avoid the forbidden `atomics.wait`.
+#
+# Only useful on the `wasm32-unknown-unknown` target.
+web_spin_lock = ["dep:wasm_sync"]
+
+[dev-dependencies]
+rand = "0.9.2"
+criterion = "0.7.0"
+
+[target.'cfg(unix)'.dev-dependencies]
+libc = "0.2"
+

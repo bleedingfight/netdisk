@@ -1,0 +1,36 @@
+[package]
+name = "netdisk-tools"
+version = "0.1.0"
+authors = ["bleedingfight <bleedingfight@gmail.com>"]
+description = "Simple work tools for Rust"
+rust-version = "1.63"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/netdisk-tools"
+documentation = "https://docs.rs/netdisk-tools"
+readme = "README.md"
+# keywords = ["parallel", "thread", "concurrency", "join", "performance"]
+# categories = ["concurrency"]
+exclude = ["/ci/*", "/scripts/*", "/.github/*"]
+
+[workspace]
+members = ["netdisk-core"]
+exclude = ["ci"]
+
+[dependencies]
+netdisk-core = { version = "0.1.0", path = "netdisk-core" }
+log = "0.4"
+env_logger = "0.11"
+
+# This is a public dependency!
+[dependencies.either]
+version = "1.1"
+default-features = false
+
+[features]
+# This feature switches to a spin-lock implementation on the browser's
+# main thread to avoid the forbidden `atomics.wait`.
+#
+[dev-dependencies]
+rand = "0.8"
+rand_xorshift = "0.3"
