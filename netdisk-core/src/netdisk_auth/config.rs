@@ -1,16 +1,77 @@
-use log::{error, info, warn};
+use actix_web::{body::BoxBody, http::header::ContentType, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct AuthConfig {
+    client_id: String,
+    client_secret: String,
+}
+impl AuthConfig {
+    pub fn client_id(&self) -> &str {
+        &self.client_id
+    }
+    pub fn client_secret(&self) -> &str {
+        &self.client_secret
+    }
+    pub fn new(c_id: String, c_sec: String) -> Self {
+        AuthConfig {
+            client_id: c_id,
+            client_secret: c_sec,
+        }
+    }
+}
+impl Default for AuthConfig {
+    fn default() -> Self {
+        AuthConfig {
+            client_id: "123".to_string(),
+            client_secret: "123".to_string(),
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     client_id: String,
     client_secret: String,
-    // server: Option<ServerConfig>, // 可选字段
+    server: Option<PlatformConfig>, // 可选字段
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PlatformConfig {
+    platform_domain: String,
+    platform: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AccessTokenResponse {
+    pub access_token: String,
+    pub expires_at: u64,
+}
+impl AccessTokenResponse {
+    pub fn new(token: String, expires: u64) -> Self {
+        AccessTokenResponse {
+            access_token: token,
+            expires_at: expires,
+        }
+    }
 }
 
+impl Default for PlatformConfig {
+    fn default() -> Self {
+        PlatformConfig {
+            platform_domain: "open-api.123pan.com".to_string(),
+            platform: "open_platform".to_string(),
+        }
+    }
+}
+impl PlatformConfig {
+    pub fn platform_domain(&self) -> &str {
+        &self.platform_domain
+    }
+    pub fn platform(&self) -> &str {
+        &self.platform
+    }
+}
 impl Config {
     pub fn client_id(&self) -> &str {
         &self.client_id
@@ -19,11 +80,11 @@ impl Config {
     pub fn client_secret(&self) -> &str {
         &self.client_secret
     }
-    pub fn new(c_id: String, c_sec: String) -> Self {
+    pub fn new(c_id: String, c_sec: String, service: Option<PlatformConfig>) -> Self {
         Config {
             client_id: c_id,
             client_secret: c_sec,
-            // server: None,
+            server: service,
         }
     }
 
@@ -53,6 +114,7 @@ impl Config {
         let conf = Config {
             client_id,
             client_secret,
+            server: Some(PlatformConfig::default()),
         };
         if conf.is_valid() {
             Some(conf)
@@ -90,57 +152,20 @@ impl Default for Config {
         Config {
             client_id: "123".to_string(),
             client_secret: "123".to_string(),
-            // server: None,
+            server: Some(PlatformConfig::default()),
         }
     }
 }
 
-// pub fn load_config(config_path: &str) -> Result<Config, Box<dyn std::error::Error>> {
-//     // 1. 优先从环境变量读取
-//     if let (Ok(id), Ok(secret)) = (
-//         env::var("NETDISK_CLIENT_ID"),
-//         env::var("NETDISK_CLIENT_SECRET"),
-//     ) {
-//         return Ok(Config {
-//             client_id: id,
-//             client_secret: secret,
-//             // server: None,
-//         });
-//     }
+impl Responder for AccessTokenResponse {
+    type Body = BoxBody;
 
-//     // 2. ~/.config/netdisk_tool/config.toml
-//     let home = home::home_dir().expect("Could not find home directory");
-//     let file = home
-//         .join(".config")
-//         .join("netdisk_tools")
-//         .join("config.toml");
+    fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
+        let body = serde_json::to_string(&self).unwrap();
 
-//     let mut paths = Vec::new();
-//     paths.push(file);
-//     if let Some(mut config_dir) = dirs::config_dir() {
-//         config_dir.push("netdisk_tool/config.toml");
-//         paths.push(config_dir);
-//     }
-
-//     // 3. 当前目录下 config.toml
-//     paths.push(PathBuf::from("config.toml"));
-
-//     for path in paths {
-//         if path.exists() {
-//             let content = fs::read_to_string(&path)
-//                 .map_err(|e| format!("读取配置文件失败 {}: {}", path.display(), e))?;
-//             let cfg: Config = toml::from_str(&content)
-//                 .map_err(|e| format!("解析 TOML 失败 {}: {}", path.display(), e))?;
-//             return Ok(cfg);
-//         }
-//     }
-
-//     // 4. 全部失败
-//     Err("未找到配置：请设置环境变量 NETDISK_CLIENT_ID/SECRET 或提供 config.toml".into())
-// }
-
-#[derive(Serialize, Debug, Deserialize)]
-pub struct ServerConfig {
-    pub host: String,
-    pub port: u16,
+        // Create response and set content type
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .body(body)
+    }
 }

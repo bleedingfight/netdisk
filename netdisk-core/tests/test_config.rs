@@ -32,7 +32,11 @@ mod tests {
         let file_path = tmp_dir.path().join("config.toml");
         println!("临时文件路径:{:?}", file_path);
 
-        let cfg = Config::new("my_client_id".to_string(), "my_client_secret".to_string());
+        let cfg = Config::new(
+            "my_client_id".to_string(),
+            "my_client_secret".to_string(),
+            Some(PlatformConfig::default()),
+        );
         // 序列化为 TOML 字符串
         let toml_str = toml::to_string_pretty(&cfg).expect("序列化为 TOML 失败");
 

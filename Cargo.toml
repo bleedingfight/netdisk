@@ -21,6 +21,7 @@ exclude = ["ci"]
 netdisk-core = { version = "0.1.0", path = "netdisk-core" }
 log = "0.4"
 env_logger = "0.11"
+actix-web = "4"
 
 # This is a public dependency!
 [dependencies.either]
