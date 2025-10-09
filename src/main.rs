@@ -1,35 +1,42 @@
+use actix_files as fs;
 use actix_web::web;
 use actix_web::App;
 use actix_web::HttpServer;
-use log::{error, info, warn};
+use log::{debug, error};
+use netdisk_core::endpoints::responders::AccessToken;
+use netdisk_core::io_basic::read_and_write::async_read_and_deserialize;
 use netdisk_core::netdisk_api::base_api::*;
-use netdisk_core::netdisk_auth::config::*;
-// fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     env_logger::init();
-//     info!("启动程序");
+use netdisk_core::netdisk_auth::basic_env::NetDiskEnv;
 
-//     // println!("✅ 成功加载配置");
-//     // let config = load_config()?;
-//     // println!("client_id = {}", config.client_id());
-//     // println!("client_secret 已加载 (不打印以保证安全)");
-//     match Config::load() {
-//         Ok(config) => println!("配置加载成功: {:?}", config),
-//         Err(e) => eprintln!("错误: {}", e),
-//     }
-//     // if let Some(server) = config.server {
-//     //     println!("server = {}:{}", server.host, server.port);
-//     // }
-
-//     Ok(())
-// }
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    HttpServer::new(|| {
+    let env = NetDiskEnv::new().map_err(|e| {
+        error!("❌ 致命错误：无法初始化 NetDiskEnv：{}", e);
+        e // 并将错误返回，导致 main 退出
+    })?;
+
+    let file_path = env.config_dir.join("config.toml");
+    let mut access_token: AccessToken = AccessToken::default();
+    match get_access_token_from_cache(&file_path).await {
+        Ok(token) => {
+            access_token = token;
+        }
+        Err(_) => {
+            debug!("Error to message");
+        }
+    }
+
+    let config_path_data = web::Data::new(env);
+    let access_token_data = web::Data::new(access_token);
+    HttpServer::new(move || {
         App::new()
-            .service(hello)
+            .app_data(config_path_data.clone())
+            .app_data(access_token_data.clone())
             .service(echo)
-            .service(access_token)
+            .service(file_info)
+            .route("/access_token", web::post().to(access_token_and_cache))
+            .service(fs::Files::new("/", "./static/").index_file("index.html"))
             .route("/hey", web::get().to(manual_hello))
     })
     .bind(("127.0.0.1", 8080))?

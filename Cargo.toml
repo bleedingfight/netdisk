@@ -21,7 +21,9 @@ exclude = ["ci"]
 netdisk-core = { version = "0.1.0", path = "netdisk-core" }
 log = "0.4"
 env_logger = "0.11"
+actix-files = "0.6" 
 actix-web = "4"
+chrono = "0.4"
 
 # This is a public dependency!
 [dependencies.either]
@@ -33,5 +35,5 @@ default-features = false
 # main thread to avoid the forbidden `atomics.wait`.
 #
 [dev-dependencies]
-rand = "0.8"
-rand_xorshift = "0.3"
+rand = "0.9"
+rand_xorshift = "0.4"
