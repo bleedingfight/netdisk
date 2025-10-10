@@ -22,6 +22,10 @@ from typing import List, Tuple, Dict, Any, Union
 def str_process(name):
     return name.strip()
 
+def mesg_process(mesg):
+    if isinstance(mesg, str) and mesg.endswith(','):
+        mesg = mesg.strip(',')
+    return mesg
 
 def parse_xls_to_data(
     xls_file_path: str, sheet_index: int = 0
@@ -345,6 +349,7 @@ class MagnetPipeline(BasePipeline):
 
 class FlashPipeline(BasePipeline):
     def __init__(self, xls_file: str, sheet_index: int, cache_file: str):
+        self.black_list = set(["百家讲坛","演唱会"])
         super().__init__(xls_file)
         self.sheet_index = sheet_index
         self.cache_file = cache_file
@@ -364,7 +369,8 @@ class FlashPipeline(BasePipeline):
 
         # 2. 遍历所有工作表 (Sheet Name 是键，DataFrame 是值)
         for sheet_name, df in xls_data.items():
-            logger.info(f"--- 正在处理工作表: {sheet_name} ---")
+            logger.info(f"=== 正在处理工作表: {sheet_name} ---")
+            count = 0
 
             # 假设第一列是电影名称，第二列是 JSON 字符串
             # 为了健壮性，这里假设列名分别是第一列和第二列的默认名 (0, 1)
@@ -379,23 +385,29 @@ class FlashPipeline(BasePipeline):
 
             # 3. 遍历每一行数据
             for index, row in df.iterrows():
-                movie_name = row[0]
-                movie_info = row[1]
+                for elem in row:
+                    if pd.isna(elem):
+                        continue
+                    else:
+                        try:
+                            movie_info = json.loads(mesg_process(elem))
+                        except json.decoder.JSONDecodeError as e:
+                            movie_name = elem
+                        except TypeError as e:
+                            continue
 
-                # 确保 movie_name 有效且 JSON 字符串存在
-                if pd.isna(movie_name) or pd.isna(movie_info):
-                    continue
-
+                assert isinstance(movie_name,str) and isinstance(movie_info,dict),f"movie_name must be str and movie_info must be str,but now is {type(movie_name)} and {type(movie_info)}"
                 try:
                     # 4. 解析 JSON 字符串为 Python 字典
-                    if movie_info.endswith(','):
-                        movie_info = movie_info.strip(',')
-                    info_dict = json.loads(movie_info)
+                    # info_dict = json.loads(movie_info)
+                    info_dict = movie_info
 
-                    # 5. 将结果存储到汇总字典中，以电影名称为键
                     if "files" not in info:
                         info['files'] = []
-                    info["files"].append(info_dict)
+                    # 不处理黑名单列表中的文件
+                    if 'path' in info_dict and all(black not in sheet_name for black in self.black_list):
+                        info["files"].append(info_dict)
+                        count+=1
 
                 except json.JSONDecodeError as e:
                     # 处理 JSON 格式错误的行
@@ -403,6 +415,7 @@ class FlashPipeline(BasePipeline):
                         movie_name}' JSON 格式无效。错误详情：{e}")
                 except Exception as e:
                     logger.error(f"处理数据时发生意外错误：{e}")
+            logger.info(f"{sheet_name} 成功写入数据 {count} 条!")
 
         if self.cache_file and not os.path.exists(self.cache_file):
             with open(self.cache_file, 'w') as f:
@@ -425,11 +438,12 @@ class FlashPipeline(BasePipeline):
 
 
 if __name__ == "__main__":
-    basepath = "/home/liushuai/文档/xwechat_files/bleedingfight_ae28/msg/file/2025-10"
-    XLS_FILE = os.path.join(
-        basepath, "5320部4K蓝光电影原盘磁力链接（115可直接观看） (3).xls"
-    )
-    flash_xls = os.path.join(basepath, "123云盘综合大包秒传文件链接在线文档.xlsx")
+    # basepath = "/home/liushuai/文档/xwechat_files/bleedingfight_ae28/msg/file/2025-10"
+    # XLS_FILE = os.path.join(
+    #     basepath, "5320部4K蓝光电影原盘磁力链接（115可直接观看） (3).xls"
+    # )
+    basepath = "/home/liushuai/下载"
+    flash_xls = os.path.join(basepath, "/home/liushuai/下载/filenames.xlsx")
     SQLITE_DB = "movies.db"
     db_name = "movies"
     # process_xls_to_sqlite(XLS_FILE, SQLITE_DB)
