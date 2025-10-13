@@ -1,6 +1,6 @@
-use crate::endpoints::responders::*;
 use crate::io_basic::read_and_write::*;
 use crate::netdisk_auth::basic_env::NetDiskEnv;
+use crate::responses::prelude::*;
 use actix_web::{get, post, web, HttpResponse, HttpServer, Responder};
 use chrono::Utc;
 use log::{debug, error, info};
@@ -216,14 +216,11 @@ pub async fn access_token_and_cache(
     Ok(body)
 }
 
-#[get("/file_info")]
-pub async fn file_info(
+#[get("/files_query")]
+pub async fn files_query(
     query: web::Query<FileListQuery>, // 假设 FileListQuery 包含所有参数
     token: web::Data<AccessToken>,
 ) -> Result<HttpResponse, Box<dyn Error>> {
-    // 更改返回类型为 HttpResponse
-
-    // --- 修正 2: 更改 API URL 为正确的 /v2/file/list 接口 ---
     let client = reqwest::Client::new();
     let platform = PlatformConfig::default();
     let api_url = format!("https://{}/api/v2/file/list", platform.platform_domain());
@@ -265,13 +262,53 @@ pub async fn file_info(
         return Err(format!("API 请求失败，HTTP 状态码: {}，响应: {}", status, body).into());
     }
     debug!("请求成功");
-    // let msg = response.text().await?;
-    // debug!("==> mesg = {:?}", &msg);
-    // Err(format!("API 请求失败，HTTP 状态码: ").into())
 
     // --- 修正 1 & 4: 正确解析和返回 ---
     let api_response: FileListResponse = response.json().await?;
 
     // 返回 Actix 响应
+    Ok(HttpResponse::Ok().json(api_response))
+}
+
+#[get("/file_query")]
+pub async fn file_query(
+    query: web::Query<FileQuery>,
+    token: web::Data<AccessToken>,
+) -> Result<HttpResponse, Box<dyn Error>> {
+    let client = reqwest::Client::new();
+    let platform = PlatformConfig::default();
+    let api_url = format!("https://{}/api/v1/file/detail", platform.platform_domain());
+
+    let authorization_header = format!("Bearer {}", token.access_token);
+
+    // 关键修复：使用与API匹配的参数名fileID
+    let mut query_params = Vec::new();
+    query_params.push(("fileID", query.file_id.to_string())); // 这里改为fileID
+
+    debug!("尝试发送信息: {:?}", &query_params);
+    let response = client
+        .get(api_url)
+        .query(&query_params)
+        .header("Platform", "open_platform")
+        .header("Authorization", &authorization_header)
+        .send()
+        .await
+        .map_err(|e| format!("请求发送失败: {}", e))?;
+
+    // 检查HTTP状态码
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into());
+    }
+    // debug!("mesg = {:?}", &response.text().await);
+    // Err("功能未完成".into())
+
+    // 解析响应
+    let api_response: FileResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("响应解析失败: {}", e))?;
+
     Ok(HttpResponse::Ok().json(api_response))
 }
