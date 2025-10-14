@@ -185,6 +185,13 @@ pub struct FileQuery {
     #[serde(rename = "fileID")]
     pub file_id: i64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct FilesQuery {
+    #[serde(rename = "fileIds")]
+    pub file_ids: Vec<i64>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileData {

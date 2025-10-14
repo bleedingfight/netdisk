@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
 
-    use netdisk_core::netdisk_auth::config::*;
+    use netdisk_core::responses::prelude::*;
     use std::env;
     use std::fs;
     use tempfile::TempDir;
@@ -9,7 +9,6 @@ mod tests {
     fn test_config_env() -> Result<(), Box<dyn std::error::Error>> {
         env::set_var("NETDISK_CLIENT_ID", "test_client_id");
         env::set_var("NETDISK_CLIENT_SECRET", "test_client_secret");
-        // let config = load_config()?;
         let config = Config::load()?;
         assert!(!config.client_id().is_empty());
         assert!(!config.client_secret().is_empty());

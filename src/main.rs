@@ -3,8 +3,7 @@ use actix_web::web;
 use actix_web::App;
 use actix_web::HttpServer;
 use log::{debug, error};
-use netdisk_core::io_basic::read_and_write::async_read_and_deserialize;
-use netdisk_core::netdisk_api::base_api::*;
+use netdisk_core::netdisk_api::prelude::*;
 use netdisk_core::netdisk_auth::basic_env::NetDiskEnv;
 use netdisk_core::responses::prelude::*;
 
@@ -35,7 +34,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(access_token_data.clone())
             .service(echo)
             .service(file_query)
-            .service(files_query)
+            .service(file_lists_query)
             .route("/access_token", web::post().to(access_token_and_cache))
             .service(fs::Files::new("/", "./static/").index_file("index.html"))
             .route("/hey", web::get().to(manual_hello))

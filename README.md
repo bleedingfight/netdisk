@@ -6,7 +6,7 @@
 curl -X POST -H 'Content-Type: application/json' -d '{"client_id":"123", "client_secret":"123"}' http://127.0.0.1:8080/access_token
 curl -X POST -H 'Content-Type: application/json' -d '{"client_id":"'$NETDISK_CLIENT_ID'", "client_secret":"'$NETDISK_CLIENT_SECRET'"}' http://127.0.0.1:8080/access_token
 # 测试获取文件信息
-curl --location 'http://127.0.0.1:8080/files_query?parentFileId=0&limit=100'
+curl --location 'http://127.0.0.1:8080/file_lists_query?parentFileId=0&limit=100'
 # 获得单个文件信息
 curl --location 'http://127.0.0.1:8080/file_query?fileID=18226271'
 

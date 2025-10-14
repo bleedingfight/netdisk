@@ -1,6 +1,6 @@
 mod tests {
-    use netdisk_core::netdisk_auth::config::AccessToken;
-    use netdisk_core::{io_basic::read_and_write::*, netdisk_auth::config::AuthConfig};
+    use netdisk_core::io_basic::read_and_write::*;
+    use netdisk_core::responses::prelude::*;
     use std::path::Path;
     use tempfile::NamedTempFile;
     use tokio;
