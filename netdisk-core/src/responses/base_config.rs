@@ -9,7 +9,7 @@ use std::path::PathBuf;
 pub struct ApiResponse<T> {
     pub code: i32,
     pub message: String,
-    pub data: T,
+    pub data: Option<T>,
     #[serde(rename = "x-traceID")]
     pub x_trace_id: String,
 }
@@ -18,7 +18,7 @@ impl<T> ApiResponse<T> {
         ApiResponse {
             code: code,
             message: message,
-            data: data,
+            data: Some(data),
             x_trace_id: x_trace_id,
         }
     }

@@ -92,8 +92,6 @@ pub async fn file_query(
         let body = response.text().await.unwrap_or_default();
         return Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into());
     }
-    // debug!("mesg = {:?}", &response.text().await);
-    // Err("功能未完成".into())
 
     // 解析响应
     let api_response: FileResponse = response
@@ -104,10 +102,80 @@ pub async fn file_query(
     Ok(HttpResponse::Ok().json(api_response))
 }
 
-#[get("/files_query")]
-pub async fn file_lists_query(
-    query: web::Query<FilesQuery>, // 假设 FileListQuery 包含所有参数
+#[post("/files_info")]
+pub async fn files_info(
+    payload: web::Json<FilesQuery>,
     token: web::Data<AccessToken>,
 ) -> Result<HttpResponse, Box<dyn Error>> {
+    let client = reqwest::Client::new();
+    let platform = PlatformConfig::default();
+    let api_url = format!("https://{}/api/v1/file/infos", platform.platform_domain());
+
+    let authorization_header = format!("Bearer {}", token.access_token);
+
+    debug!("尝试发送信息: {:?}", &payload);
+
+    let response = client
+        .post(&api_url)
+        .header("Authorization", &authorization_header)
+        .header("Platform", platform.platform())
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("请求发送失败: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into());
+    }
+
+    // 解析响应
+    let api_response: FilesInfoResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("响应解析失败: {}", e))?;
+
+    Ok(HttpResponse::Ok().json(api_response))
 }
 
+#[post("/mkdir")]
+pub async fn mkdir(
+    payload: web::Json<EntryItem>,
+    token: web::Data<AccessToken>,
+) -> Result<HttpResponse, Box<dyn Error>> {
+    let client = reqwest::Client::new();
+    let platform = PlatformConfig::default();
+    let api_url = format!(
+        "https://{}/upload/v1/file/mkdir",
+        platform.platform_domain()
+    );
+
+    let authorization_header = format!("Bearer {}", token.access_token);
+
+    debug!("尝试发送信息: {:?}", &payload);
+
+    let response = client
+        .post(&api_url)
+        .header("Authorization", &authorization_header)
+        .header("Platform", platform.platform())
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| format!("请求发送失败: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into())
+    } else {
+        // 解析响应
+        let api_response: PathInfoResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("响应解析失败: {}", e))?;
+
+        debug!("响应内容: {:?}", &api_response);
+        Ok(HttpResponse::Ok().json(api_response))
+    }
+}

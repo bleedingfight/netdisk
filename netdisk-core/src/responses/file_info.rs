@@ -1,4 +1,5 @@
 use super::base_config::*;
+use crate::netdisk_api::prelude::*;
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -186,45 +187,77 @@ pub struct FileQuery {
     pub file_id: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FilesQuery {
-    #[serde(rename = "fileIds")]
-    pub file_ids: Vec<i64>,
+    #[serde(rename = "fileIds", deserialize_with = "limit_deserializer::limit_vec")]
+    pub file_ids: Vec<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileData {
-    /// 文件ID
     #[serde(rename = "fileID")]
     pub file_id: u64,
 
     #[serde(rename = "parentFileID")]
     pub parent_file_id: u64,
-
     pub filename: String,
 
-    /// 文件类型
     #[serde(rename = "type")]
     pub file_type: i32,
-
-    /// 文件大小（字节）
     pub size: u64,
-
-    /// 文件的ETag标识
     pub etag: String,
-
-    /// 文件状态
     pub status: i32,
+    #[serde(with = "standard_format")]
+    pub create_at: DateTime<Local>,
+    pub trashed: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileInfo {
+    pub file_id: u64,
+    pub filename: String,
+    pub parent_file_id: u64,
+    pub r#type: i32,
+    pub etag: String,
+    pub size: u64,
+    pub category: i32,
+    pub status: i32,
+    pub punish_flag: i32,
+    pub s3_key_flag: String,
+    pub storage_node: String,
+    pub trashed: u8,
 
     #[serde(with = "standard_format")]
     pub create_at: DateTime<Local>,
+    #[serde(with = "standard_format")]
+    pub update_at: DateTime<Local>,
+}
 
-    /// 是否被删除（0表示未删除，1表示已删除）
-    pub trashed: i32,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilesInfoData {
+    pub fileList: Vec<FileInfo>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryItem {
+    pub name: String,
+    pub parentID: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryInfo {
+    pub dirID: u64,
 }
 
 pub type AccessTokenResponse = ApiResponse<AccessToken>;
 pub type CreateFileResponse = ApiResponse<CreateFile>;
 pub type FileListResponse = ApiResponse<FileListBody>;
 pub type FileResponse = ApiResponse<FileData>;
+pub type FilesInfoResponse = ApiResponse<FilesInfoData>;
+pub type PathInfoResponse = ApiResponse<EntryInfo>;
