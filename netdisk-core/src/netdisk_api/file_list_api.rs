@@ -36,7 +36,7 @@ pub async fn file_search(
         .get(api_url)
         .query(&query_params) // 使用包含所有参数的 Vec
         .header("Content-Type", "application/json")
-        .header("Platform", "open_platform")
+        .header("Platform", platform.platform())
         .header("Authorization", &authorization_header)
         .send()
         .await?;

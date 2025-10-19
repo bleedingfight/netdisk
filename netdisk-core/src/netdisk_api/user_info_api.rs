@@ -35,3 +35,7 @@ pub async fn user_info(token: web::Data<AccessToken>) -> Result<HttpResponse, Bo
         Ok(HttpResponse::Ok().json(api_response))
     }
 }
+
+pub fn user_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(user_info);
+}

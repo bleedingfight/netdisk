@@ -40,7 +40,7 @@ pub async fn file_lists_query(
         .get(api_url)
         .query(&query_params) // 使用包含所有参数的 Vec
         .header("Content-Type", "application/json")
-        .header("Platform", "open_platform")
+        .header("Platform", platform.platform())
         .header("Authorization", &authorization_header)
         .send()
         .await?;
@@ -80,7 +80,7 @@ pub async fn file_query(
     let response = client
         .get(api_url)
         .query(&query_params)
-        .header("Platform", "open_platform")
+        .header("Platform", platform.platform())
         .header("Authorization", &authorization_header)
         .send()
         .await
@@ -171,6 +171,50 @@ pub async fn mkdir(
     } else {
         // 解析响应
         let api_response: PathInfoResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("响应解析失败: {}", e))?;
+
+        debug!("响应内容: {:?}", &api_response);
+        Ok(HttpResponse::Ok().json(api_response))
+    }
+}
+
+#[get("/download")]
+pub async fn download(
+    query: web::Query<FileQuery>,
+    token: web::Data<AccessToken>,
+) -> Result<HttpResponse, Box<dyn Error>> {
+    debug!("=====================");
+    let file_query_data: FileQuery = query.into_inner();
+    let client = reqwest::Client::new();
+    let platform = PlatformConfig::default();
+    let api_url = format!(
+        "https://{}/{}",
+        platform.platform_domain(),
+        "api/v1/file/download_info"
+    );
+
+    let authorization_header = format!("Bearer {}", token.access_token);
+
+    debug!("尝试发送信息: {:?}", &file_query_data);
+
+    let response = client
+        .get(api_url)
+        .query(&file_query_data) // 使用包含所有参数的 Vec
+        .header("Content-Type", "application/json")
+        .header("Platform", platform.platform())
+        .header("Authorization", &authorization_header)
+        .send()
+        .await?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let body = response.text().await.unwrap_or_default();
+        Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into())
+    } else {
+        // 解析响应
+        let api_response: DownloadUrlResponse = response
             .json()
             .await
             .map_err(|e| format!("响应解析失败: {}", e))?;

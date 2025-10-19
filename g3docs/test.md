@@ -58,5 +58,49 @@ curl --location 'https://open-api.123pan.com/api/v2/file/list?parentFileId=0&lim
                                                --header 'Content-Type: application/json' \
                                                --header 'Platform: open_platform' \
                                                --header "Authorization: Bearer $ACCESS_TOKEN"
+# shared
+curl --location 'https://open-api.123pan.com/api/v1/share/create' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN" \
+                              --data '{
+                              "shareName": "测试分享链接",
+                              "shareExpire": 1,
+                              "fileIDList": "18869763"
+                          }'
+# 获取分享文件列表
+ curl --location 'https://open-api.123pan.com/api/v1/share/list?limit=10&lastShareId=0' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN"
+# 修改分享文件信息
+curl --location --request PUT 'https://open-api.123pan.com/api/v1/share/list/info' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN" \
+                              --data '{
+                              "shareIdList": [69692575],
+                              "trafficSwitch": 2,
+                              "trafficLimitSwitch": 2,
+                              "trafficLimit": 1073741824
+                          }'
+# 修改付费分享链接
+curl --location 'https://open-api.123pan.com/api/v1/share/content-payment/create' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN" \
+                              --data '{
+                              "shareName": "测试付费分享链接",
+                              "fileIDList": "69692574",
+                              "isReward": 0,
+                              "payAmount": 10,
+                              "resourceDesc": "这是我的测试付费分享链接，用来测试openapi"
+                          }'
+
+# 获取文件下载地址
+curl --location 'https://open-api.123pan.com/api/v1/file/download_info?fileId=18340533' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN"
 
 ```

@@ -19,6 +19,42 @@ curl -X POST -H "Content-Type: application/json" -d '{"fileIds": [18226271]}' ht
 # 删除文件
 curl -X POST -H "Content-Type: application/json" -d '{"fileIds": [18226271]}' http://127.0.0.1:8080/delete
 
+# 获取分享文件列表
+curl --location 'http://127.0.0.1:8080/share/list?limit=10&lastShareId=0
+
+# 创建文件分享链接
+curl -X POST -H "Content-Type: application/json" -d '{
+                                                        "shareName": "测试分享链接",
+                                                        "shareExpire": "1",
+                                                        "fileIDList": "18869763"
+                                                    }'  http://127.0.0.1:8080/share/create
+
+# 获取付费链接列表
+ curl --location 'http://127.0.0.1:8080/share/payment/list?limit=10&lastShareId=0'
+
+# 设置共享链接参数
+curl -X PUT -H "Content-Type: application/json" -d '{
+                                                       "shareIdList": [69692575],
+                                                       "trafficSwitch": 2,
+                                                       "trafficLimitSwitch": 2,
+                                                       "trafficLimit": 1073741824
+                                                   }'  http://127.0.0.1:8080/share/list/info
+
+# 付费链接
+curl -X PUT -H "Content-Type: application/json" -d '{
+                              "shareName": "测试付费分享链接",
+                              "fileIDList": "11522388,11522389",
+                              "isReward": 0,
+                              "payAmount": 10,
+                              "resourceDesc": "这是我的测试付费分享链接，用来测试openapi"
+                          }'  http://127.0.0.1:8080/share/content-payment/creat
+
+# 修改付费分享链接
+curl -X PUT -H "Content-Type: application/json" -d '{
+                                    "shareIdList": [69692575],
+                                    "trafficSwitch": 2,
+                                    "trafficLimitSwitch": 2,
+                                    "trafficLimit": 1073741824}'  http://127.0.0.1:8080/share/list/payment/info
 ```
 
 ```bash
@@ -29,6 +65,7 @@ curl --location 'https://open-api.123pan.com/api/v1/file/detail?fileID=18226271'
                                     --header "Authorization: Bearer $ACCESS_TOKEN"
 # 获取用户信息
 curl -X GET -H 'Content-Type: application/json'  http://127.0.0.1:8080/user_info
+
 
 ```
 

@@ -125,78 +125,13 @@ pub struct FileListQuery {
 
     // 3. searchData (string, 选填)
     // 使用 Option<String> 允许该参数缺失或为空
-    #[serde(rename = "searchData")]
     pub search_data: Option<String>,
 
     // 4. searchMode (number, 选填)
-    // 使用 Option<u8> 允许该参数缺失
-    #[serde(rename = "searchMode")]
     pub search_mode: Option<u8>,
 
-    // 5. lastFileId (number, 选填)
-    #[serde(rename = "lastFileId")]
     pub last_file_id: Option<i64>,
 }
-
-mod standard_format {
-    // 将顶层 use 引入到模块内部作用域
-    use super::{DateTime, Deserialize, Deserializer, Local, NaiveDateTime, Serializer, TimeZone};
-
-    // API 要求的日期时间格式
-    const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-
-    // --- 1. 反序列化 (JSON String -> Rust DateTime<Local>) ---
-    pub fn deserialize_option<'de, D>(deserializer: D) -> Result<Option<DateTime<Local>>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let option: Option<String> = Option::deserialize(deserializer)?;
-
-        match option {
-            Some(s) => match NaiveDateTime::parse_from_str(&s, FORMAT) {
-                Ok(dt) => Ok(Some(Local.from_local_datetime(&dt).unwrap())),
-                Err(_) => Err(serde::de::Error::custom(format!("无效日期格式：{}", s))),
-            },
-            None => Ok(None), // null or missing field will be parsed as None
-        }
-    }
-
-    // 反序列化为 DateTime<Local>，用于确保非 None 场景时解析为 DateTime<Local>
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Local>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        match NaiveDateTime::parse_from_str(&s, FORMAT) {
-            Ok(dt) => Ok(Local.from_local_datetime(&dt).unwrap()),
-            Err(_) => Err(serde::de::Error::custom(format!("无效日期格式：{}", s))),
-        }
-    }
-
-    // 序列化为字符串
-    pub fn serialize<S>(date: &DateTime<Local>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let s = date.format(FORMAT).to_string();
-        serializer.serialize_str(&s)
-    }
-
-    // 序列化为 Option<DateTime<Local>>，直接转为字符串
-    pub fn serialize_option<S>(
-        date: &Option<DateTime<Local>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match date {
-            Some(d) => serializer.serialize_str(&d.format(FORMAT).to_string()),
-            None => serializer.serialize_none(),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileListBody {
@@ -204,9 +139,10 @@ pub struct FileListBody {
     pub file_list: Vec<FileItem>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileQuery {
     #[serde(rename = "fileID")]
+    #[serde(alias = "fileId")]
     pub file_id: i64,
 }
 
@@ -363,6 +299,13 @@ pub struct FileSearchedData {
     pub last_file_id: i64,
     pub file_list: Vec<FileItem>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadUrlData {
+    pub download_url: String,
+}
+
 pub type AccessTokenResponse = ApiResponse<AccessToken>;
 pub type CreateFileResponse = ApiResponse<CreateFile>;
 pub type FileListResponse = ApiResponse<FileListBody>;
@@ -371,3 +314,4 @@ pub type FilesInfoResponse = ApiResponse<FilesInfoData>;
 pub type PathInfoResponse = ApiResponse<EntryInfo>;
 pub type UserInfoResponse = ApiResponse<UserInfo>;
 pub type FileSearchResponse = ApiResponse<FileSearchedData>;
+pub type DownloadUrlResponse = ApiResponse<DownloadUrlData>;

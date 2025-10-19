@@ -6,4 +6,5 @@ pub mod file_list_api;
 pub mod file_move_api;
 pub mod limit;
 pub mod prelude;
+pub mod share_file_api;
 pub mod user_info_api;
