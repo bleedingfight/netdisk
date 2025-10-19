@@ -88,14 +88,15 @@ struct FileDetailQuery {
     access_token: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")] // 关键！将 Rust 的 snake_case 映射到 JSON 的 camelCase
 pub struct FileItem {
     // 整数类型
     pub file_id: i64,
-    pub parent_file_id: i64,
+    #[serde(rename = "parentFileId")]
+    pub parent_file_id: u64,
     pub r#type: u8, // 使用 r#type 避免与 Rust 关键字冲突
-    pub size: i64,
+    pub size: u64,
     pub category: u8,
     pub status: u8,
     pub punish_flag: u8,
@@ -145,32 +146,54 @@ mod standard_format {
     const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
     // --- 1. 反序列化 (JSON String -> Rust DateTime<Local>) ---
+    pub fn deserialize_option<'de, D>(deserializer: D) -> Result<Option<DateTime<Local>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let option: Option<String> = Option::deserialize(deserializer)?;
 
-    // 注意：这里的 'de 必须存在，以满足 Deserializer Trait 的要求
+        match option {
+            Some(s) => match NaiveDateTime::parse_from_str(&s, FORMAT) {
+                Ok(dt) => Ok(Some(Local.from_local_datetime(&dt).unwrap())),
+                Err(_) => Err(serde::de::Error::custom(format!("无效日期格式：{}", s))),
+            },
+            None => Ok(None), // null or missing field will be parsed as None
+        }
+    }
+
+    // 反序列化为 DateTime<Local>，用于确保非 None 场景时解析为 DateTime<Local>
     pub fn deserialize<'de, D>(deserializer: D) -> Result<DateTime<Local>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         match NaiveDateTime::parse_from_str(&s, FORMAT) {
-            Ok(dt) => {
-                // 将 NaiveDateTime 转换为 Local 时区下的 DateTime
-                // unwrap() 在这里通常是安全的，因为 NaiveDateTime 是有效的
-                Ok(Local.from_local_datetime(&dt).unwrap())
-            }
+            Ok(dt) => Ok(Local.from_local_datetime(&dt).unwrap()),
             Err(_) => Err(serde::de::Error::custom(format!("无效日期格式：{}", s))),
         }
     }
 
+    // 序列化为字符串
     pub fn serialize<S>(date: &DateTime<Local>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // 1. 使用 chrono::format 将 DateTime 转换为所需的字符串格式
-        let s = format!("{}", date.format(FORMAT));
-
-        // 2. 将字符串交给 Serializer 进行输出
+        let s = date.format(FORMAT).to_string();
         serializer.serialize_str(&s)
+    }
+
+    // 序列化为 Option<DateTime<Local>>，直接转为字符串
+    pub fn serialize_option<S>(
+        date: &Option<DateTime<Local>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match date {
+            Some(d) => serializer.serialize_str(&d.format(FORMAT).to_string()),
+            None => serializer.serialize_none(),
+        }
     }
 }
 
@@ -255,9 +278,96 @@ pub struct EntryInfo {
     pub dirID: u64,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileMoveInfo {
+    // #[rename = "fileIDs"]
+    pub fileIDs: Vec<u64>,
+    pub toParentFileID: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")] // 确保字段名与API返回的 camelCase 匹配
+pub struct VipInfo {
+    pub vip_level: u32,
+
+    pub vip_label: String,
+    #[serde(with = "standard_format")]
+    pub start_time: DateTime<Local>,
+
+    #[serde(with = "standard_format")]
+    pub end_time: chrono::DateTime<Local>, // 或使用
+}
+
+/// 开发者信息
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeveloperInfo {
+    #[serde(
+        deserialize_with = "standard_format::deserialize_option",
+        serialize_with = "standard_format::serialize_option"
+    )]
+    pub start_time: Option<DateTime<Local>>,
+
+    #[serde(
+        deserialize_with = "standard_format::deserialize_option",
+        serialize_with = "standard_format::serialize_option"
+    )]
+    pub end_time: Option<DateTime<Local>>, // 或使用 chrono::DateTime<Utc>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")] // 确保所有字段名与API返回的 camelCase 匹配
+pub struct UserInfo {
+    pub uid: u64, // 使用 u64 或 i64 (取决于 number 的实际范围)
+    pub nickname: String,
+
+    pub head_image: String,
+    pub passport: String,
+    pub mail: String,
+    pub space_used: u64,
+    pub space_permanent: u64,
+    pub space_temp: u64,
+    /// 临时空间到期日 (通常是字符串)
+    pub space_temp_expr: u64,
+    pub vip: bool,
+
+    /// 剩余直链流量
+    pub direct_traffic: u64,
+
+    /// 直链链接是否隐藏UID
+    #[serde(rename = "isHideUID")]
+    pub is_hide_uid: bool,
+
+    /// https数量
+    pub https_count: u32,
+
+    pub vip_info: Option<Vec<VipInfo>>,
+    pub developer_info: Option<DeveloperInfo>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FileSearchItem {
+    #[serde(rename = "parentFileId")]
+    pub parent_file_id: u64,
+    pub limit: u8,
+    pub search_data: Option<String>,
+    pub search_mode: Option<String>,
+    pub last_file_id: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FileSearchedData {
+    pub last_file_id: i64,
+    pub file_list: Vec<FileItem>,
+}
 pub type AccessTokenResponse = ApiResponse<AccessToken>;
 pub type CreateFileResponse = ApiResponse<CreateFile>;
 pub type FileListResponse = ApiResponse<FileListBody>;
 pub type FileResponse = ApiResponse<FileData>;
 pub type FilesInfoResponse = ApiResponse<FilesInfoData>;
 pub type PathInfoResponse = ApiResponse<EntryInfo>;
+pub type UserInfoResponse = ApiResponse<UserInfo>;
+pub type FileSearchResponse = ApiResponse<FileSearchedData>;

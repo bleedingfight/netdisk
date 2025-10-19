@@ -30,5 +30,33 @@ curl --location 'https://open-api.123pan.com/api/v1/file/trash' \
                          ]
                      }'
 
+# 移动文件
+curl --location 'https://open-api.123pan.com/api/v1/file/rename' \
+                       --header 'Content-Type: application/json' \
+                       --header 'Platform: open_platform' \
+                       --header "Authorization: Bearer $ACCESS_TOKEN" \
+                       --data '{
+                       "fileIDs": [
+                           18779583
+                       ],
+                       "toParentFileID": 0
+                   }'
+
+# 获取用户信息
+curl --location 'https://open-api.123pan.com/api/v1/user/info' \
+                        --header 'Content-Type: application/json' \
+                        --header 'Platform: open_platform' \
+                        --header "Authorization: Bearer $ACCESS_TOKEN"
+
+# 获取文件列表
+curl --location 'https://open-api.123pan.com/api/v2/file/list?parentFileId=0&limit=100' \
+                        --header 'Content-Type: application/json' \
+                        --header 'Platform: open_platform' \
+                        --header "Authorization: Bearer $ACCESS_TOKEN"
+# 下载文件信息
+ curl --location 'https://open-api.123pan.com/api/v1/file/download_info?fileId=18340536' \
+                                               --header 'Content-Type: application/json' \
+                                               --header 'Platform: open_platform' \
+                                               --header "Authorization: Bearer $ACCESS_TOKEN"
 
 ```

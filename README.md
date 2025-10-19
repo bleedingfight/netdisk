@@ -27,6 +27,8 @@ curl --location 'https://open-api.123pan.com/api/v1/file/detail?fileID=18226271'
                                     --header 'Content-Type: application/json' \
                                     --header 'Platform: open_platform' \
                                     --header "Authorization: Bearer $ACCESS_TOKEN"
+# 获取用户信息
+curl -X GET -H 'Content-Type: application/json'  http://127.0.0.1:8080/user_info
 
 ```
 
