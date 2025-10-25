@@ -22,10 +22,12 @@ from typing import List, Tuple, Dict, Any, Union
 def str_process(name):
     return name.strip()
 
+
 def mesg_process(mesg):
     if isinstance(mesg, str) and mesg.endswith(','):
         mesg = mesg.strip(',')
     return mesg
+
 
 def parse_xls_to_data(
     xls_file_path: str, sheet_index: int = 0
@@ -349,7 +351,7 @@ class MagnetPipeline(BasePipeline):
 
 class FlashPipeline(BasePipeline):
     def __init__(self, xls_file: str, sheet_index: int, cache_file: str):
-        self.black_list = set(["百家讲坛","演唱会"])
+        self.black_list = set(["百家讲坛", "演唱会"])
         super().__init__(xls_file)
         self.sheet_index = sheet_index
         self.cache_file = cache_file
@@ -396,7 +398,8 @@ class FlashPipeline(BasePipeline):
                         except TypeError as e:
                             continue
 
-                assert isinstance(movie_name,str) and isinstance(movie_info,dict),f"movie_name must be str and movie_info must be str,but now is {type(movie_name)} and {type(movie_info)}"
+                assert isinstance(movie_name, str) and isinstance(
+                    movie_info, dict), f"movie_name must be str and movie_info must be str,but now is {type(movie_name)} and {type(movie_info)}"
                 try:
                     # 4. 解析 JSON 字符串为 Python 字典
                     # info_dict = json.loads(movie_info)
@@ -407,7 +410,7 @@ class FlashPipeline(BasePipeline):
                     # 不处理黑名单列表中的文件
                     if 'path' in info_dict and all(black not in sheet_name for black in self.black_list):
                         info["files"].append(info_dict)
-                        count+=1
+                        count += 1
 
                 except json.JSONDecodeError as e:
                     # 处理 JSON 格式错误的行
@@ -430,11 +433,6 @@ class FlashPipeline(BasePipeline):
 
     def info_to_sql(self):
         pass
-
-
-# -----------------
-# 4. 示例使用
-# -----------------
 
 
 if __name__ == "__main__":

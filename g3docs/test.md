@@ -102,5 +102,16 @@ curl --location 'https://open-api.123pan.com/api/v1/file/download_info?fileId=18
                               --header 'Content-Type: application/json' \
                               --header 'Platform: open_platform' \
                               --header "Authorization: Bearer $ACCESS_TOKEN"
+# 上传文件
+curl --location 'https://open-api.123pan.com/upload/v2/file/create' \
+                              --header 'Content-Type: application/json' \
+                              --header 'Platform: open_platform' \
+                              --header "Authorization: Bearer $ACCESS_TOKEN" \
+                              --data '{
+                              "parentFileID": 0,
+                              "filename": "Skyfall.2012.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",
+                              "etag": "e325c611ea19f1bc3bef16f0eac7cb92",
+                              "size": 59570941009
+                          }'
 
 ```

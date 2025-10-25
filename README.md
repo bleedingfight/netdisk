@@ -90,4 +90,6 @@ curl -X GET -H 'Content-Type: application/json'  http://127.0.0.1:8080/user_info
 |文件列表|`/api/v2/file/list`|获取文件列表|Y|
 |移动|`/api/v1/file/move`|批量移动文件（最多100个）|否|
 |下载|`/api/v1/file/download_info`|获取文件的下载地址|否|
+
+- `etag`:
 <!-- ||||| -->
