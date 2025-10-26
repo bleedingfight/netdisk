@@ -1,4 +1,5 @@
 from typing import List
+import base62
 from pathlib import Path
 from typing import Any, Union, Dict, List, Tuple
 from tqdm import tqdm
@@ -402,7 +403,7 @@ def filter_list(infos, file_type=["mkv"]):
         pass
 
 
-def filter_and_merge(data: Dict, merge: Dict):
+def filter_and_merge(data: Dict, merge: Dict, reformat=True):
     """
     data:最终的Dict
     merge：原始的Dict
@@ -411,9 +412,7 @@ def filter_and_merge(data: Dict, merge: Dict):
         f"{merge.keys()} must contain files"
     )
     files = merge["files"]
-    assert isinstance(files, list), f"type(files) must be list,but now = {
-        type(files)}"
-    filter_item = []
+    assert isinstance(files, list), f"type(files) must be list,but now = {type(files)}"
     all_files = set()
     type_file = "video"
     for file_info in files:
@@ -427,11 +426,18 @@ def filter_and_merge(data: Dict, merge: Dict):
                 type_file = tp
 
         if type_file in data:
+            if reformat and len(file_info["etag"]) != 32:
+                file_info["etag"] = (
+                    base62.decode(file_info["etag"], charset=base62.CHARSET_INVERTED)
+                    .to_bytes(16)
+                    .hex()
+                )
             data[type_file].append(file_info)
         else:
             logger.warning(
                 f"{ext} 不属于 {all_file_types.keys()} 中任何一种类型，不会统计！ {
-                    file_info} 将被丢弃"
+                    file_info
+                } 将被丢弃"
             )
     return data, all_files
 
@@ -488,7 +494,8 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
             # 2. 插入数据
             # insert_sql = f"INSERT INTO {table_name} (path, size, etag) VALUES (?, ?, ?)"
             insert_sql = f"INSERT OR REPLACE INTO {
-                table_name} (path, size, etag) VALUES (?, ?, ?)"
+                table_name
+            } (path, size, etag) VALUES (?, ?, ?)"
 
             # 使用批量插入以提高性能
             data_to_insert = []
@@ -552,8 +559,7 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
 
 if __name__ == "__main__":
     if not os.path.exists("test_in.xlsx"):
-        df = pd.DataFrame([{"Name": "张三", "Age": 30},
-                          {"Name": "李四", "Age": 25}])
+        df = pd.DataFrame([{"Name": "张三", "Age": 30}, {"Name": "李四", "Age": 25}])
         df.to_excel("test_in.xlsx", index=False)
 
     if not os.path.exists("test_in.json"):
