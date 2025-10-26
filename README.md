@@ -6,13 +6,13 @@
 curl -X POST -H 'Content-Type: application/json' -d '{"client_id":"123", "client_secret":"123"}' http://127.0.0.1:8080/access_token
 curl -X POST -H 'Content-Type: application/json' -d '{"client_id":"'$NETDISK_CLIENT_ID'", "client_secret":"'$NETDISK_CLIENT_SECRET'"}' http://127.0.0.1:8080/access_token
 # 测试获取文件信息
-curl --location 'http://127.0.0.1:8080/file_lists_query?parentFileId=0&limit=100'
+curl --location 'http://127.0.0.1:8080/file/file_lists_query?parentFileId=0&limit=100'
 # 获得单个文件信息
-curl --location 'http://127.0.0.1:8080/file_query?fileID=18226271'
+curl --location 'http://127.0.0.1:8080/file/file_query?fileID=18226271'
 # 获取文件详细
-curl -X POST -H 'Content-Type: application/json' -d '{"fileIds":[18226271]}' http://127.0.0.1:8080/files_info
+curl -X POST -H 'Content-Type: application/json' -d '{"fileIds":[18226271]}' http://127.0.0.1:8080/file/files_info
 # 创建文件
-curl -X POST -H 'Content-Type: application/json' -d '{"name":"path1","parentID":0}' http://127.0.0.1:8080/mkdir
+curl -X POST -H 'Content-Type: application/json' -d '{"name":"path1","parentID":0}' http://127.0.0.1:8080/file/mkdir
 # 文件移动到垃圾桶
 curl -X POST -H "Content-Type: application/json" -d '{"fileIds": [18226271]}' http://127.0.0.1:8080/trash
 
@@ -34,6 +34,8 @@ curl -X POST -H "Content-Type: application/json" -d '{
                                                         "filename": "Skyfall.2012.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",                                                                             "etag": "e325c611ea19f1bc3bef16f0eac7cb92",
                                                         "size": 59570941009
                                                     }' http://127.0.0.1:8080/file/upload
+# 获取文件下载信息
+ curl -X GET -H 'Content-Type: application/json'  http://127.0.0.1:8080/file/download?fileId=18340536
 
 # 获取付费链接列表
  curl --location 'http://127.0.0.1:8080/share/payment/list?limit=10&lastShareId=0'

@@ -4,7 +4,6 @@ use log::{debug, error, info};
 use reqwest;
 use std::error::Error;
 
-// #[post("/create")]
 pub async fn share_create(
     payload: web::Json<ShareItem>,
     token: web::Data<AccessToken>,

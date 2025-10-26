@@ -1,7 +1,7 @@
 use super::base_config::*;
 use crate::netdisk_api::prelude::*;
 use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{self, Deserialize, Serialize, Serializer};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RequestConfig<T> {

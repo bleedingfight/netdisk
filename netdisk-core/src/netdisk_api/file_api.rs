@@ -1,13 +1,8 @@
-use crate::io_basic::read_and_write::*;
-use crate::netdisk_auth::basic_env::NetDiskEnv;
 use crate::responses::prelude::*;
-use actix_web::{get, post, web, HttpResponse, HttpServer, Responder};
-use chrono::Utc;
+use actix_web::{get, post, web, HttpResponse};
 use log::{debug, error, info};
 use reqwest;
 use std::error::Error;
-use std::path::Path;
-#[get("/file_lists_query")]
 pub async fn file_lists_query(
     query: web::Query<FileListQuery>, // 假设 FileListQuery 包含所有参数
     token: web::Data<AccessToken>,
@@ -52,16 +47,12 @@ pub async fn file_lists_query(
         let body = response.text().await.unwrap_or_default();
         return Err(format!("API 请求失败，HTTP 状态码: {}，响应: {}", status, body).into());
     }
-    debug!("请求成功");
-
-    // --- 修正 1 & 4: 正确解析和返回 ---
     let api_response: FileListResponse = response.json().await?;
 
     // 返回 Actix 响应
     Ok(HttpResponse::Ok().json(api_response))
 }
 
-#[get("/file_query")]
 pub async fn file_query(
     query: web::Query<FileQuery>,
     token: web::Data<AccessToken>,
@@ -102,7 +93,6 @@ pub async fn file_query(
     Ok(HttpResponse::Ok().json(api_response))
 }
 
-#[post("/files_info")]
 pub async fn files_info(
     payload: web::Json<FilesQuery>,
     token: web::Data<AccessToken>,
@@ -139,7 +129,6 @@ pub async fn files_info(
     Ok(HttpResponse::Ok().json(api_response))
 }
 
-#[post("/mkdir")]
 pub async fn mkdir(
     payload: web::Json<EntryItem>,
     token: web::Data<AccessToken>,
@@ -180,11 +169,11 @@ pub async fn mkdir(
     }
 }
 
-#[get("/download")]
 pub async fn download(
     query: web::Query<FileQuery>,
     token: web::Data<AccessToken>,
-) -> Result<HttpResponse, Box<dyn Error>> {
+) -> Result<HttpResponse, actix_web::Error> {
+    // <- 注意返回类型
     let file_query_data: FileQuery = query.into_inner();
     let client = reqwest::Client::new();
     let platform = PlatformConfig::default();
@@ -200,25 +189,39 @@ pub async fn download(
 
     let response = client
         .get(api_url)
-        .query(&file_query_data) // 使用包含所有参数的 Vec
+        .query(&file_query_data)
         .header("Content-Type", "application/json")
         .header("Platform", platform.platform())
         .header("Authorization", &authorization_header)
         .send()
-        .await?;
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?; // <- 转 actix_web::Error
 
     let status = response.status();
     if !status.is_success() {
         let body = response.text().await.unwrap_or_default();
-        Err(format!("API请求失败，状态码: {}，响应: {}", status, body).into())
+        Err(actix_web::error::ErrorInternalServerError(format!(
+            "API请求失败，状态码: {}，响应: {}",
+            status, body
+        )))
     } else {
-        // 解析响应
         let api_response: DownloadUrlResponse = response
             .json()
             .await
-            .map_err(|e| format!("响应解析失败: {}", e))?;
+            .map_err(actix_web::error::ErrorInternalServerError)?;
 
         debug!("响应内容: {:?}", &api_response);
         Ok(HttpResponse::Ok().json(api_response))
     }
+}
+
+pub fn file_config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/file") // 所有路由都以 /share 为前缀
+            .route("/download", web::get().to(download))
+            .route("/mkdir", web::post().to(mkdir))
+            .route("/file_lists_query", web::get().to(file_lists_query))
+            .route("/file_query", web::get().to(file_query))
+            .route("/files_info", web::post().to(files_info)),
+    );
 }
