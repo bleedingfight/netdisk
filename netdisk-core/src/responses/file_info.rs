@@ -47,30 +47,22 @@ impl Default for AccessToken {
 /// 创建文件接口的返回内容
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateFile {
-    pub file_id: i64,
-
-    // 布尔类型
+pub struct UploadFileData {
+    pub file_id: Option<u64>,
     pub reuse: bool,
-
-    // 字符串类型
     pub preupload_id: String,
-
-    // 整数类型（通常 slice size 较大，用 i64 或 u64 更安全）
     pub slice_size: u64,
-
-    // 字符串数组（List of Strings）
     pub servers: Vec<String>,
 }
-impl CreateFile {
+impl UploadFileData {
     pub fn new(
-        file_id: i64,
+        file_id: Option<u64>,
         reuse: bool,
         preupload_id: String,
         slice_size: u64,
         servers: Vec<String>,
     ) -> Self {
-        CreateFile {
+        UploadFileData {
             file_id: file_id,
             reuse: reuse,
             preupload_id: preupload_id,
@@ -306,8 +298,20 @@ pub struct DownloadUrlData {
     pub download_url: String,
 }
 
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")] // 关键！将 Rust 的 snake_case 映射到 JSON 的 camelCase
+pub struct UploadFileItem {
+    #[serde(rename = "parentFileId")]
+    pub parent_file_id: u64,
+    pub filename:String,
+    pub etag:String,
+    pub size:u64,
+    pub duplicate:Option<u8>,
+    pub contain_dir:Option<bool>,
+}
+
 pub type AccessTokenResponse = ApiResponse<AccessToken>;
-pub type CreateFileResponse = ApiResponse<CreateFile>;
 pub type FileListResponse = ApiResponse<FileListBody>;
 pub type FileResponse = ApiResponse<FileData>;
 pub type FilesInfoResponse = ApiResponse<FilesInfoData>;
@@ -315,3 +319,4 @@ pub type PathInfoResponse = ApiResponse<EntryInfo>;
 pub type UserInfoResponse = ApiResponse<UserInfo>;
 pub type FileSearchResponse = ApiResponse<FileSearchedData>;
 pub type DownloadUrlResponse = ApiResponse<DownloadUrlData>;
+pub type UploadFileResponse = ApiResponse<UploadFileData>;

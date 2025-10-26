@@ -185,7 +185,6 @@ pub async fn download(
     query: web::Query<FileQuery>,
     token: web::Data<AccessToken>,
 ) -> Result<HttpResponse, Box<dyn Error>> {
-    debug!("=====================");
     let file_query_data: FileQuery = query.into_inner();
     let client = reqwest::Client::new();
     let platform = PlatformConfig::default();
