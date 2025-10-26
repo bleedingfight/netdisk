@@ -38,6 +38,7 @@ async fn main() -> std::io::Result<()> {
             .service(file_lists_query)
             .service(files_info)
             .service(file_search)
+            .service(file_upload)
             .service(trash)
             .service(delete)
             .service(mkdir)

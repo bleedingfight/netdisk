@@ -298,17 +298,16 @@ pub struct DownloadUrlData {
     pub download_url: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")] // 关键！将 Rust 的 snake_case 映射到 JSON 的 camelCase
 pub struct UploadFileItem {
-    #[serde(rename = "parentFileId")]
+    #[serde(alias = "parentFileID", alias = "parentFileId")]
     pub parent_file_id: u64,
-    pub filename:String,
-    pub etag:String,
-    pub size:u64,
-    pub duplicate:Option<u8>,
-    pub contain_dir:Option<bool>,
+    pub filename: String,
+    pub etag: String,
+    pub size: u64,
+    pub duplicate: Option<u8>,
+    pub contain_dir: Option<bool>,
 }
 
 pub type AccessTokenResponse = ApiResponse<AccessToken>;

@@ -4,13 +4,17 @@ use log::{debug, error, info};
 use reqwest;
 use std::error::Error;
 
-pub async fn file_create(
+#[post("/file/upload")]
+pub async fn file_upload(
     payload: web::Json<UploadFileItem>,
     token: web::Data<AccessToken>,
 ) -> Result<HttpResponse, Box<dyn Error>> {
     let client = reqwest::Client::new();
     let platform = PlatformConfig::default();
-    let api_url = format!("https://{}/upload/v2/file/create", platform.platform_domain());
+    let api_url = format!(
+        "https://{}/upload/v2/file/create",
+        platform.platform_domain()
+    );
 
     let authorization_header = format!("Bearer {}", token.access_token);
 
@@ -39,4 +43,3 @@ pub async fn file_create(
         Ok(HttpResponse::Ok().json(api_response))
     }
 }
-

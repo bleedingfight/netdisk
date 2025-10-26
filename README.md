@@ -28,6 +28,12 @@ curl -X POST -H "Content-Type: application/json" -d '{
                                                         "shareExpire": "1",
                                                         "fileIDList": "18869763"
                                                     }'  http://127.0.0.1:8080/share/create
+# 上传文件
+ curl -X POST -H 'Content-Type: application/json' -d  '{
+                                                        "parentFileID": 0,
+                                                        "filename": "Skyfall.2012.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-FGT.mkv",                                                                             "etag": "e325c611ea19f1bc3bef16f0eac7cb92",
+                                                        "size": 59570941009
+                                                    }' http://127.0.0.1:8080/file/upload
 
 # 获取付费链接列表
  curl --location 'http://127.0.0.1:8080/share/payment/list?limit=10&lastShareId=0'

@@ -7,3 +7,4 @@ pub use super::file_move_api::*;
 pub use super::limit::*;
 pub use super::share_file_api::*;
 pub use super::user_info_api::*;
+pub use super::file_upload_api::*;
