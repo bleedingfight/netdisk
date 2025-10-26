@@ -1,13 +1,10 @@
-use actix_files as fs;
 use actix_web::web;
-use actix_web::App;
 use actix_web::HttpServer;
 use log::{debug, error};
+use netdisk_core::create_app;
 use netdisk_core::netdisk_api::prelude::*;
 use netdisk_core::netdisk_auth::basic_env::NetDiskEnv;
 use netdisk_core::responses::prelude::*;
-use actix_web::dev::HttpServiceFactory;
-use netdisk_core::create_app;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
@@ -34,11 +31,8 @@ async fn main() -> std::io::Result<()> {
     let config_path_data = web::Data::new(env);
     let access_token_data = web::Data::new(access_token);
 
-    // 创建并启动 HttpServer
-    HttpServer::new(move || {
-        create_app(config_path_data.clone(), access_token_data.clone())
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    HttpServer::new(move || create_app(config_path_data.clone(), access_token_data.clone()))
+        .bind(("127.0.0.1", 8080))?
+        .run()
+        .await
 }

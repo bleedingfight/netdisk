@@ -13,6 +13,9 @@ curl --location 'http://127.0.0.1:8080/file/file_query?fileID=18226271'
 curl -X POST -H 'Content-Type: application/json' -d '{"fileIds":[18226271]}' http://127.0.0.1:8080/file/files_info
 # 创建文件
 curl -X POST -H 'Content-Type: application/json' -d '{"name":"path1","parentID":0}' http://127.0.0.1:8080/file/mkdir
+# 移动文件到特定目录
+curl -X POST 'http://127.0.0.1:8080/file/move' -H 'Content-Type: application/json' -d '{"fileIDs": [18999095],"toParentFileID": 18529409}'
+
 # 文件移动到垃圾桶
 curl -X POST -H "Content-Type: application/json" -d '{"fileIds": [18226271]}' http://127.0.0.1:8080/trash
 

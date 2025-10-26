@@ -1,6 +1,6 @@
 use crate::responses::prelude::*;
-use actix_web::{get, post, web, HttpResponse, HttpServer, Responder};
-use log::{debug, error, info};
+use actix_web::{web, HttpResponse};
+use log::debug;
 use reqwest;
 use std::error::Error;
 
