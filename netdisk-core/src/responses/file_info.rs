@@ -44,34 +44,6 @@ impl Default for AccessToken {
     }
 }
 
-/// 创建文件接口的返回内容
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UploadFileData {
-    pub file_id: Option<u64>,
-    pub reuse: bool,
-    pub preupload_id: String,
-    pub slice_size: u64,
-    pub servers: Vec<String>,
-}
-impl UploadFileData {
-    pub fn new(
-        file_id: Option<u64>,
-        reuse: bool,
-        preupload_id: String,
-        slice_size: u64,
-        servers: Vec<String>,
-    ) -> Self {
-        UploadFileData {
-            file_id: file_id,
-            reuse: reuse,
-            preupload_id: preupload_id,
-            slice_size: slice_size,
-            servers: servers,
-        }
-    }
-}
-
 // 文件信息结构体
 #[derive(Debug, Deserialize)]
 struct FileDetailQuery {
@@ -301,13 +273,43 @@ pub struct DownloadUrlData {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")] // 关键！将 Rust 的 snake_case 映射到 JSON 的 camelCase
 pub struct UploadFileItem {
-    #[serde(alias = "parentFileID", alias = "parentFileId")]
+    #[serde(alias = "parentFileID")]
     pub parent_file_id: u64,
     pub filename: String,
     pub etag: String,
     pub size: u64,
     pub duplicate: Option<u8>,
     pub contain_dir: Option<bool>,
+}
+
+/// 创建文件接口的返回内容
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadFileData {
+    #[serde(alias = "fileID")]
+    pub file_id: Option<u64>,
+    pub reuse: bool,
+    #[serde(alias = "preuploadID")]
+    pub preupload_id: String,
+    pub slice_size: u64,
+    pub servers: Vec<String>,
+}
+impl UploadFileData {
+    pub fn new(
+        file_id: Option<u64>,
+        reuse: bool,
+        preupload_id: String,
+        slice_size: u64,
+        servers: Vec<String>,
+    ) -> Self {
+        UploadFileData {
+            file_id: file_id,
+            reuse: reuse,
+            preupload_id: preupload_id,
+            slice_size: slice_size,
+            servers: servers,
+        }
+    }
 }
 
 pub type AccessTokenResponse = ApiResponse<AccessToken>;

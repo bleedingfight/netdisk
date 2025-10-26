@@ -3,4 +3,5 @@ python/*.json
 python/*.db
 python/*.xlsx
 target/*
+python/dbs/*
 Cargo.lock

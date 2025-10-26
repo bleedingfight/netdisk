@@ -14,7 +14,7 @@ readme = "README.md"
 exclude = ["/ci/*", "/scripts/*", "/.github/*"]
 
 [workspace]
-members = ["netdisk-core"]
+members = ["netdisk-core", "netdisk-client"]
 exclude = ["ci"]
 
 [dependencies]

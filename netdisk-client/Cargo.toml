@@ -1,0 +1,19 @@
+[package]
+name = "netdisk-client"
+version = "0.1.0"
+edition = "2021"
+description = "Rust client for netdisk API using reqwest"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+log = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22.0"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
