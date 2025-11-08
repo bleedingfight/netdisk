@@ -1,4 +1,6 @@
 from typing import List
+import re
+import datetime
 import base62
 from pathlib import Path
 from typing import Any, Union, Dict, List, Tuple
@@ -215,7 +217,7 @@ def find_files(root_dir: str, ext=".json") -> List[Path]:
     # 检查目录是否存在
     root_path = Path(root_dir)
     if not root_path.is_dir():
-        print(f"错误: 目录 '{root_dir}' 不存在或不是一个目录。")
+        logger.debug(f"错误: 目录 '{root_dir}' 不存在或不是一个目录。")
         return []
 
     json_files = []
@@ -403,9 +405,40 @@ def filter_list(infos, file_type=["mkv"]):
         pass
 
 
+def extract_name(filepath: str) -> str:
+    # 1. 获取文件名 (移除路径部分)
+    filename_with_ext = os.path.basename(filepath)
+    
+    # 2. 移除文件扩展名 (获取基名)
+    base_name, ext = os.path.splitext(filename_with_ext)
+    
+    # --- 规则 1: 匹配剧集模式 (SxxExx) ---
+    # 正则表达式解释:
+    # (?P<title>.*?)   : 惰性匹配，捕获标题到 "title" 组
+    # [ ._-]* : 匹配标题和 S06E05 之间的分隔符 (空格, 点, 下划线, 连字符)
+    # [Ss](?P<season>\d+): 匹配 S 或 s，并捕获季度号到 "season" 组
+    # [Ee]\d+.* : 匹配 E 或 e 和集数，以及后面可能有的子标题
+    re_series = re.compile(r"(?P<title>.*?)[\s._-]*[Ss](?P<season>\d+)[Ee]\d+.*")
+    
+    if match := re_series.match(base_name):
+        # 提取捕获组
+        title = match.group("title").strip()
+        season_num_str = match.group("season")
+        
+        # 格式化 Season N (移除 Season 号码前面的 0, 如 S06 -> 6)
+        season_num = int(season_num_str) # 转换为整数来移除前导零
+        
+        # 返回重组后的剧集标题
+        return f"{title} Season {season_num}"
+
+    # --- 规则 2 & 3: 电影或普通文件 ---
+    # 如果没有匹配到剧集模式，则直接返回去除扩展名后的基名
+    # 这满足了 星际旅行 和 Episode 01 的需求。
+    return base_name
+
 def filter_and_merge(data: Dict, merge: Dict, reformat=True):
     """
-    data:最终的Dict
+    data：最终的Dict
     merge：原始的Dict
     """
     assert find_files_key_recursively(merge, "files"), (
@@ -432,6 +465,13 @@ def filter_and_merge(data: Dict, merge: Dict, reformat=True):
                     .to_bytes(16)
                     .hex()
                 )
+            if 'modified_time' not in file_info:
+                file_info['modified_time'] = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+            if "file_type" not in file_info:
+                file_info["file_type"] = type_file
+            if "name" not in file_info:
+                file_info["name"] = extract_name(file_info["path"])
+                logger.debug(f"extract name: >>{file_info['name']}<< from [{file_info['path']}]")
             data[type_file].append(file_info)
         else:
             logger.warning(
@@ -457,10 +497,10 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
         with open(json_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"错误：未找到文件 {json_file_path}")
+        logger.debug(f"错误：未找到文件 {json_file_path}")
         return
     except json.JSONDecodeError:
-        print(f"错误：JSON 文件 {json_file_path} 格式不正确")
+        logger.debug(f"错误：JSON 文件 {json_file_path} 格式不正确")
         return
 
     # 遍历 JSON 中的每一个顶级键（即不同的数据类别，如 'video', 'audio'）
@@ -469,7 +509,7 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
         db_file_name = os.path.join(db_base_dir, f"{key}.db")
         table_name = key  # 使用键名作为表名
 
-        print(f"\n--- 正在处理键: {key}，写入数据库: {db_file_name} ---")
+        logger.debug(f"\n--- 正在处理键: {key}，写入数据库: {db_file_name} ---")
 
         # 连接到 SQLite 数据库（如果文件不存在则会自动创建）
         conn = None
@@ -485,17 +525,19 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
                 path TEXT NOT NULL,
                 size TEXT,
                 etag TEXT,
+                modified_time INTEGER,
+                file_type TEXT,
+                name TEXT,
                 UNIQUE(path, etag)
             );
             """
             cursor.execute(create_table_sql)
-            print(f"表 {table_name} 已创建或已存在。")
+            logger.debug(f"表 {table_name} 已创建或已存在。")
 
             # 2. 插入数据
-            # insert_sql = f"INSERT INTO {table_name} (path, size, etag) VALUES (?, ?, ?)"
             insert_sql = f"INSERT OR REPLACE INTO {
                 table_name
-            } (path, size, etag) VALUES (?, ?, ?)"
+            } (path, size, etag,modified_time,file_type,name) VALUES (?, ?,?,?,?,?)"
 
             # 使用批量插入以提高性能
             data_to_insert = []
@@ -503,59 +545,29 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
             if isinstance(file_list, list):
                 for item in file_list:
                     # 确保字典中包含所需的键
-                    if all(k in item for k in ["path", "size", "etag"]):
+                    if all(k in item for k in ["path", "size", "etag","modified_time","file_type","name"]):
                         data_to_insert.append(
-                            (item["path"], item["size"], item["etag"])
-                        )
+                            (item["path"], item["size"], item["etag"],item["modified_time"],item.get("file_type",""),item.get("name","")
+                        ))
                     else:
-                        print(f"警告：跳过格式不正确的条目: {item}")
+                        logger.debug(f"警告：跳过格式不正确的条目: {item}")
             else:
-                print(f"警告：键 '{key}' 对应的值不是列表，跳过。")
+                logger.debug(f"警告：键 '{key}' 对应的值不是列表，跳过。")
                 continue
 
             # 执行批量插入
             if data_to_insert:
                 cursor.executemany(insert_sql, data_to_insert)
                 conn.commit()
-                print(f"成功插入 {len(data_to_insert)} 条记录到 {db_file_name}")
+                logger.debug(f"成功插入 {len(data_to_insert)} 条记录到 {db_file_name}")
             else:
-                print("列表为空或没有有效数据可插入。")
+                logger.debug("列表为空或没有有效数据可插入。")
 
         except sqlite3.Error as e:
-            print(f"SQLite 数据库操作错误: {e}")
+            logger.debug(f"SQLite 数据库操作错误: {e}")
         finally:
             if conn:
                 conn.close()
-
-
-# # --- 示例用法 ---
-
-# # 1. 准备一个示例 JSON 文件
-# example_json_content = {
-#     "video": [
-#         {'path': '电影/科幻/Interstellar.mp4', 'size': '10.5GB', 'etag': 'Vd89sL23A'},
-#         {'path': '剧集/美剧/GOT_S01E01.mkv', 'size': '2.1GB', 'etag': 'Xy2aB7c8F'}
-#     ],
-#     "audio": [
-#         {'path': '音乐库/无损音乐/005.WAV系列/音乐3/雨果系列290张-6/雨果唱片-《广东小曲》/新建 文本文档.txt', 'size': '786', 'etag': '5Z4EKevrwtDlrB8wJgEVas'},
-#         {'path': '音乐库/古典乐/Beethoven_No5.flac', 'size': '50MB', 'etag': '9JkL4oPrs'}
-#     ],
-#     "image": [
-#         {'path': '图片/风景/sunset.jpg', 'size': '2MB', 'etag': 'T7uQzW1xY'}
-#     ]
-# }
-
-# # 写入临时的 JSON 文件
-# temp_json_path = "file_metadata.json"
-# with open(temp_json_path, 'w', encoding='utf-8') as f:
-#     json.dump(example_json_content, f, indent=4)
-
-# 2. 调用函数执行解析和存储
-# 数据库文件将被创建在当前目录下的 'dbs' 文件夹中
-
-# 3. 清理（可选：删除临时文件和生成的数据库目录）
-# os.remove(temp_json_path)
-# os.rmdir("dbs")
 
 if __name__ == "__main__":
     if not os.path.exists("test_in.xlsx"):
@@ -570,7 +582,6 @@ if __name__ == "__main__":
 
     json_file = "/home/liushuai/下载/123/"
     files = find_files(json_file)
-    # all_json = {"files": []}
     all_json = {t: [] for t in all_file_types.keys()}
 
     all_types = set()
