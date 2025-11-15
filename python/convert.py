@@ -523,7 +523,7 @@ def parse_and_save_json(json_file_path, db_base_dir="."):
             CREATE TABLE IF NOT EXISTS {table_name} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 path TEXT NOT NULL,
-                size TEXT,
+                size INTEGER,
                 etag TEXT,
                 modified_time INTEGER,
                 file_type TEXT,
