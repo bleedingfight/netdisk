@@ -26,6 +26,8 @@ curl -X POST -H "Content-Type: application/json" -d '{"fileIds": [18226271]}' ht
 curl --location 'http://127.0.0.1:8080/share/list?limit=10&lastShareId=0
 # 搜索接口
 curl -X GET "http://127.0.0.1:8080/file_search?parentFileId=0&limit=10"
+# 精准搜索
+curl -X GET "http://127.0.0.1:8080/file_search?parentFileId=0&limit=20&searchMode=1&searchData=Northward"
 # 创建文件分享链接
 curl -X POST -H "Content-Type: application/json" -d '{
                                                         "shareName": "测试分享链接",
