@@ -9,23 +9,23 @@ mod tests {
     use netdisk_core::netdisk_auth::basic_env::NetDiskEnv;
     use netdisk_core::netdisk_api::prelude::*;
     use actix_web::{test,web,App};
-use actix_web::{web, App};
 use serde_json::json;
-use your_crate_name::{download, AccessToken, FileQuery, DownloadUrlResponse}; // ⚠️ 替换
+use netdisk_core::responses::prelude::*;
 
 #[actix_web::test]
 async fn test_download_handler() {
     let token = web::Data::new(AccessToken {
         access_token: "test_token".to_string(),
+        expired_at: chrono::Utc::now(),
     });
 
     // 构造查询参数
     let query = web::Query(FileQuery {
-        fileId: "18340536".to_string(),
+        file_id: 18340536,
     });
 
     // 直接调用 handler，不走 Actix 服务
-    let result = download(query, token).await;
+    let result = netdisk_core::netdisk_api::file_api::download(query, token).await;
 
     match result {
         Ok(resp) => {
