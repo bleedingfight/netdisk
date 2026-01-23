@@ -44,6 +44,44 @@ impl Default for AccessToken {
     }
 }
 
+/// 安全存储的 Token
+///
+/// access_token 字段以加密形式存储，使用时需要解密。
+/// 过期时间以明文存储（不是敏感信息）。
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SecureToken {
+    /// 加密后的 access_token (hex 编码)
+    pub encrypted_token: String,
+    /// 过期时间
+    pub expired_at: DateTime<Utc>,
+}
+
+impl SecureToken {
+    /// 从 AccessToken 创建加密版本
+    pub fn from_access_token(token: &AccessToken) -> Self {
+        use crate::crypto::encrypt_token;
+        SecureToken {
+            encrypted_token: encrypt_token(&token.access_token),
+            expired_at: token.expired_at,
+        }
+    }
+
+    /// 解密并转换为 AccessToken
+    pub fn to_access_token(&self) -> AccessToken {
+        use crate::crypto::decrypt_token;
+        AccessToken {
+            access_token: decrypt_token(&self.encrypted_token),
+            expired_at: self.expired_at,
+        }
+    }
+
+    /// 检查 token 是否已过期
+    pub fn is_expired(&self) -> bool {
+        self.expired_at <= Utc::now()
+    }
+}
+
 // 文件信息结构体
 #[derive(Debug, Deserialize)]
 struct FileDetailQuery {

@@ -1,3 +1,4 @@
+pub mod crypto;
 pub mod endpoints;
 pub mod io_basic;
 pub mod netdisk_api;

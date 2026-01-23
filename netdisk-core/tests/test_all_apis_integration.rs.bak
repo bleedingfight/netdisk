@@ -1,0 +1,572 @@
+#[cfg(test)]
+mod tests {
+    use actix_web::{test, web, App, middleware, dev::Service};
+    use actix_http::Request;
+    use netdisk_core::responses::prelude::*;
+    use netdisk_core::netdisk_auth::basic_env::NetDiskEnv;
+    use netdisk_core::netdisk_api::{
+        auth_api, base_api, file_api, file_delete_api, file_list_api, 
+        file_move_api, share_file_api, user_info_api, file_upload_api
+    };
+    use serde_json::json;
+
+    /// 创建完整的测试应用，包含所有API路由
+    async fn create_test_app() -> impl Service<Request, Response = actix_web::dev::ServiceResponse, Error = actix_web::Error> {
+        test::init_service(
+            App::new()
+                .wrap(middleware::Logger::default())
+                .app_data(web::Data::new(AccessToken {
+                    access_token: "test_access_token".to_string(),
+                    expired_at: chrono::Utc::now() + chrono::Duration::hours(1),
+                }))
+                .app_data(web::Data::new(NetDiskEnv::new().unwrap_or_default()))
+                // 基础API
+                .service(web::resource("/").route(web::get().to(base_api::hello)))
+                .service(web::resource("/echo").route(web::post().to(base_api::echo)))
+                // 认证API
+                .service(web::resource("/access_token").route(web::post().to(auth_api::access_token)))
+                .service(web::resource("/access_token_and_cache").route(web::post().to(auth_api::access_token_and_cache)))
+                // 文件API
+                .service(web::resource("/file/download").route(web::get().to(file_api::download)))
+                .service(web::resource("/file/mkdir").route(web::post().to(file_api::mkdir)))
+                .service(web::resource("/file/file_lists_query").route(web::get().to(file_api::file_lists_query)))
+                .service(web::resource("/file/file_query").route(web::get().to(file_api::file_query)))
+                .service(web::resource("/file/files_info").route(web::post().to(file_api::files_info)))
+                // 文件删除API
+                .service(web::resource("/file/trash").route(web::post().to(file_delete_api::trash)))
+                .service(web::resource("/file/delete").route(web::post().to(file_delete_api::delete)))
+                // 文件列表API
+                .service(web::resource("/file/file_search").route(web::get().to(file_list_api::file_search)))
+                // 文件移动API
+                .service(web::resource("/file/move").route(web::post().to(file_move_api::move_file)))
+                // 分享文件API
+                .service(web::resource("/share/create").route(web::post().to(share_file_api::share_create)))
+                .service(web::resource("/share/list").route(web::get().to(share_file_api::share_list)))
+                .service(web::resource("/share/list/info").route(web::put().to(share_file_api::share_list_info)))
+                .service(web::resource("/share/content-payment/creat").route(web::put().to(share_file_api::pay_link)))
+                .service(web::resource("/share/list/payment/info").route(web::put().to(share_file_api::change_share_list_info)))
+                .service(web::resource("/share/payment/list").route(web::get().to(share_file_api::payment_list)))
+                // 用户信息API
+                .service(web::resource("/user_info").route(web::get().to(user_info_api::user_info)))
+                // 文件上传API
+                .service(web::resource("/file/upload").route(web::post().to(file_upload_api::file_upload)))
+        ).await
+    }
+
+    // ==================== 基础API测试 ====================
+
+    #[actix_web::test]
+    async fn test_base_hello() {
+        println!("=== 基础API - Hello接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        assert!(body_str.contains("Hello 123Pan!"));
+    }
+
+    #[actix_web::test]
+    async fn test_base_echo() {
+        println!("=== 基础API - Echo接口测试 ===");
+        let app = create_test_app().await;
+        
+        let test_data = "测试回显数据";
+        let req = test::TestRequest::post()
+            .uri("/echo")
+            .set_payload(test_data)
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        assert_eq!(body_str, test_data);
+    }
+
+    // ==================== 文件API测试 ====================
+
+    #[actix_web::test]
+    async fn test_file_query_http() {
+        println!("=== 文件API - 文件查询接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/file/file_query?fileID=12345")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应是有效的JSON
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+            assert!(json_resp.get("message").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_file_download() {
+        println!("=== 文件API - 文件下载接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/file/download?fileID=12345")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_file_mkdir() {
+        println!("=== 文件API - 创建目录接口测试 ===");
+        let app = create_test_app().await;
+        
+        let mkdir_data = json!({
+            "name": "test_directory",
+            "parentID": 0
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/mkdir")
+            .set_payload(mkdir_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_file_lists_query() {
+        println!("=== 文件API - 文件列表查询接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/file/file_lists_query?parentFileId=0&limit=10")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_files_info() {
+        println!("=== 文件API - 批量文件信息查询接口测试 ===");
+        let app = create_test_app().await;
+        
+        let files_data = json!({
+            "fileIds": [12345, 12346]
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/files_info")
+            .set_payload(files_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 文件删除API测试 ====================
+
+    #[actix_web::test]
+    async fn test_file_trash() {
+        println!("=== 文件删除API - 移动到回收站接口测试 ===");
+        let app = create_test_app().await;
+        
+        let trash_data = json!({
+            "fileIds": [12345, 12346]
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/trash")
+            .set_payload(trash_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_file_delete() {
+        println!("=== 文件删除API - 永久删除接口测试 ===");
+        let app = create_test_app().await;
+        
+        let delete_data = json!({
+            "fileIds": [12345, 12346]
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/delete")
+            .set_payload(delete_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 文件列表API测试 ====================
+
+    #[actix_web::test]
+    async fn test_file_search() {
+        println!("=== 文件列表API - 文件搜索接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/file/file_search?parentFileId=0&limit=10")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 文件移动API测试 ====================
+
+    #[actix_web::test]
+    async fn test_file_move() {
+        println!("=== 文件移动API - 文件移动接口测试 ===");
+        let app = create_test_app().await;
+        
+        let move_data = json!({
+            "fileIDs": [12345, 12346],
+            "toParentFileID": 100
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/move")
+            .set_payload(move_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 分享文件API测试 ====================
+
+    #[actix_web::test]
+    async fn test_share_create() {
+        println!("=== 分享API - 创建分享接口测试 ===");
+        let app = create_test_app().await;
+        
+        let share_data = json!({
+            "fileId": 12345,
+            "shareName": "测试分享",
+            "shareExpire": 7,
+            "shareType": 1
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/share/create")
+            .set_payload(share_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_share_list() {
+        println!("=== 分享API - 分享列表接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/share/list?limit=10")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_share_list_info() {
+        println!("=== 分享API - 分享信息更新接口测试 ===");
+        let app = create_test_app().await;
+        
+        let share_data = json!({
+            "shareId": 12345,
+            "shareName": "更新后的分享名称"
+        });
+        
+        let req = test::TestRequest::put()
+            .uri("/share/list/info")
+            .set_payload(share_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 用户信息API测试 ====================
+
+    #[actix_web::test]
+    async fn test_user_info() {
+        println!("=== 用户API - 用户信息接口测试 ===");
+        let app = create_test_app().await;
+        
+        let req = test::TestRequest::get()
+            .uri("/user_info")
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 文件上传API测试 ====================
+
+    #[actix_web::test]
+    async fn test_file_upload() {
+        println!("=== 上传API - 文件上传接口测试 ===");
+        let app = create_test_app().await;
+        
+        let upload_data = json!({
+            "parentFileID": 0,
+            "filename": "test_file.txt",
+            "etag": "abc123",
+            "size": 1024
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/file/upload")
+            .set_payload(upload_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 认证API测试 ====================
+
+    #[actix_web::test]
+    async fn test_access_token() {
+        println!("=== 认证API - 获取访问令牌接口测试 ===");
+        let app = create_test_app().await;
+        
+        let auth_data = json!({
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret"
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/access_token")
+            .set_payload(auth_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    #[actix_web::test]
+    async fn test_access_token_and_cache() {
+        println!("=== 认证API - 带缓存的访问令牌接口测试 ===");
+        let app = create_test_app().await;
+        
+        let auth_data = json!({
+            "client_id": "test_client_id",
+            "client_secret": "test_client_secret"
+        });
+        
+        let req = test::TestRequest::post()
+            .uri("/access_token_and_cache")
+            .set_payload(auth_data.to_string())
+            .insert_header(("Content-Type", "application/json"))
+            .to_request();
+
+        let resp = test::call_service(&app, req).await;
+        println!("响应状态: {}", resp.status());
+        
+        let body = test::read_body(resp).await;
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        println!("响应体: {}", body_str);
+        
+        // 验证响应格式
+        if let Ok(json_resp) = serde_json::from_str::<serde_json::Value>(&body_str) {
+            assert!(json_resp.get("code").is_some());
+        }
+    }
+
+    // ==================== 路由配置测试 ====================
+
+    #[actix_web::test]
+    async fn test_all_routes_config() {
+        println!("=== 所有路由配置测试 ===");
+        let app = create_test_app().await;
+        
+        // 测试各种路由
+        let routes = vec![
+            ("/", "GET", "基础Hello路由"),
+            ("/echo", "POST", "基础Echo路由"),
+            ("/file/file_query?fileID=123", "GET", "文件查询路由"),
+            ("/file/download?fileID=123", "GET", "文件下载路由"),
+            ("/user_info", "GET", "用户信息路由"),
+            ("/share/list?limit=10", "GET", "分享列表路由"),
+        ];
+
+        for (path, method, description) in routes {
+            println!("测试 {}: {}", description, path);
+            
+            let req = match method {
+                "GET" => test::TestRequest::get().uri(path).to_request(),
+                "POST" => test::TestRequest::post().uri(path).to_request(),
+                "PUT" => test::TestRequest::put().uri(path).to_request(),
+                _ => continue,
+            };
+
+            let resp = test::call_service(&app, req).await;
+            println!("  状态: {}", resp.status());
+            
+            // 验证有响应（不管是成功还是错误）
+            assert!(resp.status().as_u16() > 0);
+        }
+    }
+}

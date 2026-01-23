@@ -1,3 +1,4 @@
+use crate::netdisk_api::api_client::ApiClient;
 use crate::responses::prelude::*;
 use actix_web::{web, HttpResponse};
 use log::debug;
@@ -224,6 +225,96 @@ pub async fn change_share_list_info(
         let api_response: ApiResponse<()> = response.json().await?;
         Ok(HttpResponse::Ok().json(api_response))
     }
+}
+
+// ============================================================================
+// 可测试版本的 API 函数
+// ============================================================================
+
+/// 获取分享列表 - 可测试版本
+///
+/// 对应 curl: curl -X GET http://127.0.0.1:8080/share/list?limit=10
+pub async fn share_list_v2(
+    query: web::Query<ShareQuery>,
+    token: web::Data<AccessToken>,
+    client: web::Data<ApiClient>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let authorization = format!("Bearer {}", token.access_token);
+
+    let mut query_params = Vec::new();
+    query_params.push(("limit", query.limit.to_string()));
+
+    if let Some(last_share_id) = query.last_share_id {
+        query_params.push(("lastFileId", last_share_id.to_string()));
+    }
+
+    debug!("share_list_v2: 获取分享列表");
+
+    let response = client.http_client()
+        .get(client.url("/api/v1/share/list"))
+        .query(&query_params)
+        .header("Content-Type", "application/json")
+        .header("Platform", client.platform())
+        .header("Authorization", &authorization)
+        .send()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(actix_web::error::ErrorInternalServerError(format!(
+            "API 请求失败，HTTP 状态码: {}，响应: {}",
+            status, body
+        )));
+    }
+
+    let api_response: SharedListDataResponse = response
+        .json()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().json(api_response))
+}
+
+/// 创建分享链接 - 可测试版本
+///
+/// 对应 curl: curl -X POST -H 'Content-Type: application/json' \
+///   -d '{"shareFileIdList":[123], "sharePwd":"1234", "expiredTime":"2099-12-31 23:59:59"}' \
+///   http://127.0.0.1:8080/share/create
+pub async fn share_create_v2(
+    payload: web::Json<ShareItem>,
+    token: web::Data<AccessToken>,
+    client: web::Data<ApiClient>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let authorization = format!("Bearer {}", token.access_token);
+
+    debug!("share_create_v2: 创建分享链接 {:?}", &payload);
+
+    let response = client.http_client()
+        .post(client.url("/api/v1/share/create"))
+        .header("Authorization", &authorization)
+        .header("Platform", client.platform())
+        .json(&payload.into_inner())
+        .send()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(actix_web::error::ErrorInternalServerError(format!(
+            "API 请求失败，HTTP 状态码: {}，响应: {}",
+            status, body
+        )));
+    }
+
+    let api_response: SharedDataResponse = response
+        .json()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().json(api_response))
 }
 
 pub fn share_config(cfg: &mut web::ServiceConfig) {

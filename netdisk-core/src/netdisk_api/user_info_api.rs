@@ -1,3 +1,4 @@
+use crate::netdisk_api::api_client::ApiClient;
 use crate::responses::prelude::*;
 use actix_web::{get, web, HttpResponse};
 use log::{debug, error, info};
@@ -34,6 +35,42 @@ pub async fn user_info(token: web::Data<AccessToken>) -> Result<HttpResponse, Bo
 
         Ok(HttpResponse::Ok().json(api_response))
     }
+}
+
+/// 获取用户信息 - 可测试版本
+///
+/// 对应 curl: curl -X GET http://127.0.0.1:8080/user_info
+pub async fn user_info_v2(
+    token: web::Data<AccessToken>,
+    client: web::Data<ApiClient>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let authorization = format!("Bearer {}", token.access_token);
+
+    debug!("user_info_v2: 获取用户信息");
+
+    let response = client.http_client()
+        .get(client.url("/api/v1/user/info"))
+        .header("Authorization", &authorization)
+        .header("Platform", client.platform())
+        .send()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(actix_web::error::ErrorInternalServerError(format!(
+            "API 请求失败，HTTP 状态码: {}，响应: {}",
+            status, body
+        )));
+    }
+
+    let api_response: UserInfoResponse = response
+        .json()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().json(api_response))
 }
 
 pub fn user_config(cfg: &mut web::ServiceConfig) {

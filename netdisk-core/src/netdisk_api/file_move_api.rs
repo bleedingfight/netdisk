@@ -1,3 +1,4 @@
+use crate::netdisk_api::api_client::ApiClient;
 use crate::responses::prelude::*;
 use actix_web::{self, error, post, web, HttpResponse};
 use log::debug;
@@ -43,6 +44,45 @@ pub async fn move_file(
         debug!("响应内容: {:?}", &api_response);
         Ok(HttpResponse::Ok().json(api_response))
     }
+}
+
+/// 移动文件 - 可测试版本
+///
+/// 对应 curl: curl -X POST -H 'Content-Type: application/json' \
+///   -d '{"fileIDs":[123,456], "toParentFileID":789}' http://127.0.0.1:8080/file/move
+pub async fn move_file_v2(
+    payload: web::Json<FileMoveInfo>,
+    token: web::Data<AccessToken>,
+    client: web::Data<ApiClient>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let authorization = format!("Bearer {}", token.access_token);
+
+    debug!("move_file_v2: 移动文件 {:?}", &payload);
+
+    let response = client.http_client()
+        .post(client.url("/api/v1/file/move"))
+        .header("Authorization", &authorization)
+        .header("Platform", client.platform())
+        .json(&payload.into_inner())
+        .send()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(actix_web::error::ErrorInternalServerError(format!(
+            "API 请求失败，HTTP 状态码: {}，响应: {}",
+            status, body
+        )));
+    }
+
+    let api_response: ApiResponse<()> = response
+        .json()
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Ok().json(api_response))
 }
 // pub fn move_config(cfg: &mut web::ServiceConfig) {
 //     println!("✅ move_config 被调用，注册 /file/move");
